@@ -1,0 +1,5 @@
+minimumReleaseAge: 20160 # 20160 minutes = 14 days
+
+trustPolicy: no-downgrade
+
+trustPolicyIgnoreAfter: 40320 # 40320 minutes = 28 days.
