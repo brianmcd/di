@@ -2,7 +2,7 @@
 
 A lightweight, type-safe dependency injection container for Node.
 
-[![npm version](https://badge.fury.io/js/%40brianmcd%2Fdi.svg)](https://www.npmjs.com/package/@brianmcd/di)
+[![npm version](https://badge.fury.io/js/@brianmcd%2Fdi.svg)](https://www.npmjs.com/package/@brianmcd/di)
 [![CI](https://github.com/brianmcd/di/actions/workflows/ci.yml/badge.svg)](https://github.com/brianmcd/di/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
