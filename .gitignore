@@ -1,6 +1,13 @@
 # Dependencies
 node_modules/
 
+Dockerfile.dev
+docker-compose.yml
+
+.claude/settings.local.json
+
+.pnpm-store/
+
 # Build output
 dist/
 

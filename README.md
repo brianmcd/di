@@ -207,7 +207,9 @@ In your library, register your providers with a `ContainerBuilder`, but don't ca
 
 In your consuming application, simply call `.merge(yourLibraryContainerBuilder)`. This will merge all of the library's providers into the application's `ContainerBuilder`.
 
-Note: a `ContainerBuilder` forms a single namespace, so you can't provide the same token in your library and in your application.
+Two important caveats:
+1. A `ContainerBuilder` forms a single namespace, so you can't provide the same token in your library and in your application.
+2. BUT, you can merge a single `ContainerBuilder` in multiple times without issue, which you might want to do if you have some reusable code used in multiple libraries that export `ContainerBuilder`s, and then those `ContainerBuilder`s are in turn merged into your application's `ContainerBuilder`.
 
 ### Example
 

@@ -175,6 +175,26 @@ describe('merge', () => {
 
     expect(() => builder1.merge(builder2)).toThrow('Token already registered');
   });
+
+  it('should allow merging the same builder twice (diamond pattern)', async () => {
+    const shared = new ContainerBuilder().registerClass(ServiceA);
+    const libB = new ContainerBuilder().merge(shared).registerValue(CONFIG, { value: 'B' });
+    const libC = new ContainerBuilder().merge(shared);
+
+    // Should not throw - ServiceA comes from same shared builder
+    const container = await new ContainerBuilder().merge(libB).merge(libC).build();
+
+    expect(container.get(ServiceA)).toBeInstanceOf(ServiceA);
+  });
+
+  it('should still throw when different builders register the same token independently', () => {
+    const builder1 = new ContainerBuilder().registerClass(ServiceA);
+    const builder2 = new ContainerBuilder().registerClass(ServiceA);
+
+    expect(() => new ContainerBuilder().merge(builder1).merge(builder2)).toThrow(
+      'Token already registered'
+    );
+  });
 });
 
 describe('override', () => {
