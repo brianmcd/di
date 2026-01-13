@@ -304,7 +304,13 @@ export class ContainerBuilder {
   }
 
   private addRegistration(token: Token<unknown>, registration: Registration): void {
-    if (this.registrations.has(token)) {
+    const existing = this.registrations.get(token);
+    if (existing !== undefined) {
+      // If this registration already exists by reference, it means that a ContainerBuilder was
+      // merged in multiple times. We want to allow this to support diamond dependency patterns.
+      if (existing === registration) {
+        return;
+      }
       throw new Error(`Token already registered: ${tokenToString(token)}`);
     }
     this.registrations.set(token, registration);
