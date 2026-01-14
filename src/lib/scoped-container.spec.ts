@@ -22,7 +22,7 @@ describe('dependency resolution', () => {
       .build();
 
     const scope = container.createScope();
-    const scoped = await scope.get(ScopedService);
+    const scoped = await scope.getScoped(ScopedService);
 
     expect(scoped.singleton).toBe(container.get(SingletonService));
   });
@@ -43,9 +43,9 @@ describe('dependency resolution', () => {
       .build();
 
     const scope = container.createScope();
-    const scopedB = await scope.get(ScopedB);
+    const scopedB = await scope.getScoped(ScopedB);
 
-    expect(scopedB.a).toBe(await scope.get(ScopedA));
+    expect(scopedB.a).toBe(await scope.getScoped(ScopedA));
   });
 
   it('should throw at build time if singleton depends on scoped', async () => {
@@ -67,7 +67,7 @@ describe('dependency resolution', () => {
     );
   });
 
-  it('should allow scope.get to retrieve singletons from parent container', async () => {
+  it('should allow scope.get() to retrieve singletons from parent container', async () => {
     class SingletonService {
       public static readonly deps = [] as const;
     }
@@ -76,7 +76,37 @@ describe('dependency resolution', () => {
 
     const scope = container.createScope();
 
-    expect(await scope.get(SingletonService)).toBe(container.get(SingletonService));
+    expect(scope.get(SingletonService)).toBe(container.get(SingletonService));
+  });
+
+  it('should throw when scope.get() is called with a scoped token', async () => {
+    class ScopedService {
+      public static readonly deps = [] as const;
+    }
+
+    const container = await new ContainerBuilder()
+      .registerClass(ScopedService, { scope: Scope.Scoped })
+      .build();
+
+    const scope = container.createScope();
+
+    expect(() => scope.get(ScopedService)).toThrow(
+      'Token ScopedService is a scoped provider. Use getScoped() instead of get().'
+    );
+  });
+
+  it('should throw when scope.getScoped() is called with a singleton token', async () => {
+    class SingletonService {
+      public static readonly deps = [] as const;
+    }
+
+    const container = await new ContainerBuilder().registerClass(SingletonService).build();
+
+    const scope = container.createScope();
+
+    await expect(scope.getScoped(SingletonService)).rejects.toThrow(
+      'Token SingletonService is a singleton. Use get() instead of getScoped().'
+    );
   });
 });
 
@@ -96,7 +126,7 @@ describe('lifecycle', () => {
       .build();
 
     const scope = container.createScope();
-    await scope.get(ScopedService);
+    await scope.getScoped(ScopedService);
 
     expect(initCalled).toBe(true);
   });
@@ -125,7 +155,7 @@ describe('lifecycle', () => {
       .build();
 
     const scope = container.createScope();
-    await scope.get(ScopedB); // Creates ScopedA first, then ScopedB
+    await scope.getScoped(ScopedB); // Creates ScopedA first, then ScopedB
     await scope.destroy();
 
     expect(order).toEqual(['B', 'A']);
@@ -154,7 +184,7 @@ describe('lifecycle', () => {
       .build();
 
     const scope = container.createScope();
-    await scope.get(REQUEST_DATA);
+    await scope.getScoped(REQUEST_DATA);
     await scope.destroy();
 
     expect(destroyCalled).toBe(true);
@@ -181,14 +211,14 @@ describe('lifecycle', () => {
       .build();
 
     const scope = container.createScope();
-    await scope.get(ScopedService);
+    await scope.getScoped(ScopedService);
     await scope.destroy();
 
     expect(singletonDestroyed).toBe(false);
     expect(container.get(SingletonService)).toBeInstanceOf(SingletonService);
   });
 
-  it('should reject if get() called on destroyed scope', async () => {
+  it('should reject if getScoped() called on destroyed scope', async () => {
     class ScopedService {
       public static readonly deps = [] as const;
     }
@@ -200,7 +230,20 @@ describe('lifecycle', () => {
     const scope = container.createScope();
     await scope.destroy();
 
-    await expect(scope.get(ScopedService)).rejects.toThrow('Scope has been destroyed');
+    await expect(scope.getScoped(ScopedService)).rejects.toThrow('Scope has been destroyed');
+  });
+
+  it('should throw if get() called on destroyed scope', async () => {
+    class SingletonService {
+      public static readonly deps = [] as const;
+    }
+
+    const container = await new ContainerBuilder().registerClass(SingletonService).build();
+
+    const scope = container.createScope();
+    await scope.destroy();
+
+    expect(() => scope.get(SingletonService)).toThrow('Scope has been destroyed');
   });
 
   it('should set isDestroyed to true after destroy()', async () => {
@@ -239,9 +282,9 @@ describe('Multiple scopes', () => {
     const scope2 = container.createScope();
     const scope3 = container.createScope();
 
-    const instance1 = await scope1.get(ScopedService);
-    const instance2 = await scope2.get(ScopedService);
-    const instance3 = await scope3.get(ScopedService);
+    const instance1 = await scope1.getScoped(ScopedService);
+    const instance2 = await scope2.getScoped(ScopedService);
+    const instance3 = await scope3.getScoped(ScopedService);
 
     // All different instances
     expect(instance1).not.toBe(instance2);
@@ -249,8 +292,8 @@ describe('Multiple scopes', () => {
     expect(instance1).not.toBe(instance3);
 
     // Each scope maintains its own instance
-    expect(await scope1.get(ScopedService)).toBe(instance1);
-    expect(await scope2.get(ScopedService)).toBe(instance2);
+    expect(await scope1.getScoped(ScopedService)).toBe(instance1);
+    expect(await scope2.getScoped(ScopedService)).toBe(instance2);
   });
 
   it('should allow independent scope destruction', async () => {
@@ -271,14 +314,14 @@ describe('Multiple scopes', () => {
     const scope1 = container.createScope();
     const scope2 = container.createScope();
 
-    (await scope1.get(ScopedService)).name = 'scope1';
-    (await scope2.get(ScopedService)).name = 'scope2';
+    (await scope1.getScoped(ScopedService)).name = 'scope1';
+    (await scope2.getScoped(ScopedService)).name = 'scope2';
 
     await scope1.destroy();
 
     expect(destroyOrder).toEqual(['scope1']);
     expect(scope2.isDestroyed).toBe(false);
-    expect((await scope2.get(ScopedService)).name).toBe('scope2');
+    expect((await scope2.getScoped(ScopedService)).name).toBe('scope2');
   });
 });
 
@@ -293,16 +336,25 @@ describe('Scoped edge cases', () => {
       .build();
 
     const scope = container.createScope();
-    expect(await scope.get(SimpleScoped)).toBeInstanceOf(SimpleScoped);
+    expect(await scope.getScoped(SimpleScoped)).toBeInstanceOf(SimpleScoped);
   });
 
-  it('should reject for unregistered token in scope', async () => {
+  it('should reject for unregistered token in scope.get()', async () => {
     const UNREGISTERED = createToken<string>('UNREGISTERED');
 
     const container = await new ContainerBuilder().build();
     const scope = container.createScope();
 
-    await expect(scope.get(UNREGISTERED)).rejects.toThrow('Token not registered');
+    expect(() => scope.get(UNREGISTERED)).toThrow('Token not registered');
+  });
+
+  it('should reject for unregistered token in scope.getScoped()', async () => {
+    const UNREGISTERED = createToken<string>('UNREGISTERED');
+
+    const container = await new ContainerBuilder().build();
+    const scope = container.createScope();
+
+    await expect(scope.getScoped(UNREGISTERED)).rejects.toThrow('Token not registered');
   });
 
   it('should handle circular dependency detection for scoped providers', async () => {
@@ -356,7 +408,7 @@ describe('Scoped edge cases', () => {
     const container = await builder2.merge(builder1).build();
     const scope = container.createScope();
 
-    expect(await scope.get(ScopedService)).toBeInstanceOf(ScopedService);
+    expect(await scope.getScoped(ScopedService)).toBeInstanceOf(ScopedService);
     expect(container.get(CONFIG)).toEqual({ value: 'test' });
   });
 
@@ -373,7 +425,7 @@ describe('Scoped edge cases', () => {
       .build();
 
     const scope = container.createScope();
-    await scope.get(FailingService);
+    await scope.getScoped(FailingService);
 
     await expect(scope.destroy()).rejects.toThrow(AggregateError);
   });

@@ -191,7 +191,12 @@ It goes like this:
 2. Call `.build` to get your `Container`.
 3. In your application, call `container.createScope()` to get a new `ScopedContainer`. This is like a clean slate for any scoped dependencies. In express, you'd probably do this in a middleware and attach the `ScopedContainer` to the request. In GraphQL, you'd probably do this in the context creation function and attach the `ScopedContainer` to the context.
 
-`ScopedContainer`s provide a superset of the providers available in a `Container`: they can access all of the Singletons from their parent Container, plus they can instantiate Scoped providers.
+`ScopedContainer`s provide access to both singletons and scoped providers, but through separate methods to prevent accidental misuse:
+
+- `scope.get(token)` - Retrieves **only singletons** from the parent container. Throws if you try to access a scoped provider.
+- `scope.getScoped(token)` - Retrieves **only scoped instances**. Creates and caches the instance on first access. Throws if you try to access a singleton.
+
+This separation ensures you always know what kind of dependency you're getting, preventing accidental data leaks from using a singleton when you expected a request-scoped instance.
 
 Within a `ScopedContainer`, Scoped dependencies are created **once** and then cached. Each `ScopedContainer` you create gets its own cache.
 
@@ -266,7 +271,8 @@ Container for scoped instances, created via `container.createScope()`.
 
 #### Methods
 
-- `get<T>(token: Token<T>): Promise<T>` - Retrieve or create a scoped instance. Returns a Promise because scoped providers may have async factories that need to be resolved on-demand. The instance is cached for the lifetime of the `ScopedContainer`. For singleton tokens, falls back to the parent `Container`.
+- `get<T>(token: Token<T>): T` - Retrieve a singleton instance from the parent container. Throws an error if the token is a scoped provider (use `getScoped()` instead).
+- `getScoped<T>(token: Token<T>): Promise<T>` - Retrieve or create a scoped instance. Returns a Promise because scoped providers may have async factories that need to be resolved on-demand. The instance is cached for the lifetime of the `ScopedContainer`. Throws an error if the token is a singleton (use `get()` instead).
 - `destroy(): Promise<void>` - Run `onDestroy` on all `Scope.Scoped` instances that were created.
 
 ### Helper Functions
