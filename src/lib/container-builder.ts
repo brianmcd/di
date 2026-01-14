@@ -35,7 +35,7 @@ export class ContainerBuilder {
    * Dependencies are resolved automatically during build().
    * Type safety between the deps array and constructor params is enforced at this method.
    */
-  public registerClass<T, Deps extends readonly Token<any>[]>(
+  public registerClass<T, Deps extends readonly Token<any>[] = readonly []>(
     Class: InjectableClass<T, Deps>,
     options?: RegistrationOptions
   ): this {
@@ -45,7 +45,7 @@ export class ContainerBuilder {
       scope: options?.scope ?? Scope.Singleton,
       token,
       Class,
-      deps: Class.deps,
+      deps: Class.deps ?? [],
     });
     return this;
   }
@@ -357,7 +357,7 @@ interface ClassRegistration<T> {
   type: 'class';
   scope: Scope;
   token: Token<T>;
-  Class: InjectableClass<T>;
+  Class: InjectableClass<T, readonly Token<any>[]>;
   deps: readonly Token<unknown>[];
 }
 
