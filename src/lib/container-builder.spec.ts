@@ -203,28 +203,28 @@ describe('merge', () => {
   });
 });
 
-describe('override', () => {
+describe('overrideValue', () => {
   it('should override an existing value registration', async () => {
     const container = await new ContainerBuilder()
       .registerValue(CONFIG, { value: 'original' })
-      .override(CONFIG, { value: 'mocked' })
+      .overrideValue(CONFIG, { value: 'mocked' })
       .build();
 
     expect(container.get(CONFIG)).toEqual({ value: 'mocked' });
   });
 
-  it('should override an existing class registration', async () => {
+  it('should override an existing class registration with a value', async () => {
     const mockServiceA = { mocked: true };
 
     const container = await new ContainerBuilder()
       .registerClass(ServiceA)
-      .override(ServiceA, mockServiceA as unknown as ServiceA)
+      .overrideValue(ServiceA, mockServiceA as unknown as ServiceA)
       .build();
 
     expect(container.get(ServiceA)).toBe(mockServiceA);
   });
 
-  it('should override an existing factory registration', async () => {
+  it('should override an existing factory registration with a value', async () => {
     const factory = defineFactory({
       provide: DATABASE,
       deps: [] as const,
@@ -233,7 +233,7 @@ describe('override', () => {
 
     const container = await new ContainerBuilder()
       .registerFactory(factory)
-      .override(DATABASE, { connection: 'mock-db' })
+      .overrideValue(DATABASE, { connection: 'mock-db' })
       .build();
 
     expect(container.get(DATABASE)).toEqual({ connection: 'mock-db' });
@@ -242,7 +242,19 @@ describe('override', () => {
   it('should throw when overriding unregistered service', () => {
     const builder = new ContainerBuilder();
 
-    expect(() => builder.override(CONFIG, { value: 'test' })).toThrow('Cannot override');
+    expect(() => builder.overrideValue(CONFIG, { value: 'test' })).toThrow('Cannot override');
+  });
+
+  it('should throw when overriding a scoped provider', () => {
+    class ScopedService {
+      public static readonly deps = [] as const;
+    }
+
+    const builder = new ContainerBuilder().registerClass(ScopedService, { scope: Scope.Scoped });
+
+    expect(() => builder.overrideValue(ScopedService, {} as ScopedService)).toThrow(
+      'Cannot use overrideValue on scoped provider'
+    );
   });
 
   it('should work with merge() for test module pattern', async () => {
@@ -257,8 +269,8 @@ describe('override', () => {
     const mockServiceA = { mocked: true };
     const container = await new ContainerBuilder()
       .merge(createModule())
-      .override(CONFIG, { value: 'test' })
-      .override(ServiceA, mockServiceA as unknown as ServiceA)
+      .overrideValue(CONFIG, { value: 'test' })
+      .overrideValue(ServiceA, mockServiceA as unknown as ServiceA)
       .build();
 
     // Overridden services return mocks
@@ -268,6 +280,138 @@ describe('override', () => {
     // Non-overridden services use mock dependencies
     const serviceB = container.get(ServiceB);
     expect(serviceB.serviceA).toBe(mockServiceA);
+  });
+});
+
+describe('overrideClass', () => {
+  it('should override a class with another class', async () => {
+    class OriginalService {
+      public static readonly deps = [] as const;
+      public name = 'original';
+    }
+    class MockService {
+      public static readonly deps = [] as const;
+      public name = 'mock';
+    }
+
+    const container = await new ContainerBuilder()
+      .registerClass(OriginalService)
+      .overrideClass(OriginalService, MockService)
+      .build();
+
+    expect(container.get(OriginalService)).toBeInstanceOf(MockService);
+    expect(container.get(OriginalService).name).toBe('mock');
+  });
+
+  it('should preserve scope when overriding scoped class', async () => {
+    class ScopedService {
+      public static readonly deps = [] as const;
+      public name = 'original';
+    }
+    class MockScopedService {
+      public static readonly deps = [] as const;
+      public name = 'mock';
+    }
+
+    const container = await new ContainerBuilder()
+      .registerClass(ScopedService, { scope: Scope.Scoped })
+      .overrideClass(ScopedService, MockScopedService)
+      .build();
+
+    const scope = container.createScope();
+    const instance = await scope.getScoped(ScopedService);
+    expect(instance).toBeInstanceOf(MockScopedService);
+    expect(instance.name).toBe('mock');
+  });
+
+  it('should throw when token not registered', () => {
+    class UnregisteredService {
+      public static readonly deps = [] as const;
+    }
+    class MockService {
+      public static readonly deps = [] as const;
+    }
+
+    const builder = new ContainerBuilder();
+    expect(() => builder.overrideClass(UnregisteredService, MockService)).toThrow(
+      'Cannot override'
+    );
+  });
+});
+
+describe('overrideFactory', () => {
+  it('should override with a factory', async () => {
+    const factory = defineFactory({
+      provide: DATABASE,
+      deps: [] as const,
+      factory: () => ({ connection: 'real-db' }),
+    });
+
+    const mockFactory = defineFactory({
+      provide: DATABASE,
+      deps: [] as const,
+      factory: () => ({ connection: 'mock-db' }),
+    });
+
+    const container = await new ContainerBuilder()
+      .registerFactory(factory)
+      .overrideFactory(mockFactory)
+      .build();
+
+    expect(container.get(DATABASE)).toEqual({ connection: 'mock-db' });
+  });
+
+  it('should preserve scope when overriding scoped provider with factory', async () => {
+    class ScopedService {
+      public static readonly deps = [] as const;
+    }
+    const mockInstance = { mocked: true };
+
+    const container = await new ContainerBuilder()
+      .registerClass(ScopedService, { scope: Scope.Scoped })
+      .overrideFactory({
+        provide: ScopedService,
+        deps: [] as const,
+        factory: () => mockInstance,
+      })
+      .build();
+
+    const scope = container.createScope();
+    expect(await scope.getScoped(ScopedService)).toBe(mockInstance);
+  });
+
+  it('should return same mock instance across multiple scopes when factory returns same object', async () => {
+    class ScopedService {
+      public static readonly deps = [] as const;
+    }
+    const mockInstance = { id: 'mock' };
+
+    const container = await new ContainerBuilder()
+      .registerClass(ScopedService, { scope: Scope.Scoped })
+      .overrideFactory({
+        provide: ScopedService,
+        deps: [] as const,
+        factory: () => mockInstance,
+      })
+      .build();
+
+    const scope1 = container.createScope();
+    const scope2 = container.createScope();
+
+    // Both scopes get the same mock instance since the factory returns the same object
+    expect(await scope1.getScoped(ScopedService)).toBe(mockInstance);
+    expect(await scope2.getScoped(ScopedService)).toBe(mockInstance);
+  });
+
+  it('should throw when token not registered', () => {
+    const factory = defineFactory({
+      provide: DATABASE,
+      deps: [] as const,
+      factory: () => ({ connection: 'mock' }),
+    });
+
+    const builder = new ContainerBuilder();
+    expect(() => builder.overrideFactory(factory)).toThrow('Cannot override');
   });
 });
 

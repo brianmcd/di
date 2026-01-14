@@ -84,7 +84,7 @@ There are 3 provider types you can use:
 
 3. Value providers: call `.registerValue(token, value)`. This is useful for making static data injectable. Use `createToken` to create the token.
 
-Note: Each token can only be registered once. Attempting to register the same token twice will throw an error. Use `override()` if you need to replace a registration (e.g., for testing).
+Note: Each token can only be registered once. Attempting to register the same token twice will throw an error. Use `overrideValue()`, `overrideClass()`, or `overrideFactory()` if you need to replace a registration (e.g., for testing).
 
 ### Class Providers
 
@@ -251,8 +251,15 @@ Fluent builder for constructing Containers. Call `.build()` at the end to get yo
 - `registerClass<T>(Class, options?): this` - Register a class with static `deps` property
 - `registerFactory<T>(provider, options?): this` - Register a factory provider
 - `merge(otherBuilder): this` - Merge registrations from another builder
-- `override<T>(token, value): this` - Override an existing registration (useful for testing)
 - `build(options?: { init?: boolean }): Promise<Container>` - Build the container. By default, also calls `init()` on the container. Set `{ init: false }` to skip automatic initialization if you need manual control over when `onInit` hooks run (useful for testing or staged startup).
+
+For testing, you can explicitly override tokens that have already been registered:
+
+- `overrideValue<T>(token, value): this` - Override an existing singleton registration with a value. Throws if the original provider is scoped.
+- `overrideClass<T>(token, Class): this` - Override an existing registration with a class. Preserves the original scope.
+- `overrideFactory<T>(provider): this` - Override an existing registration with a factory. Preserves the original scope.
+
+You don't need to use the same provider type in your override that was used when the token was first registered. It's common to override a class with a mocked value using `overrideValue`, for example.
 
 ### Container
 
@@ -287,7 +294,7 @@ Container for scoped instances, created via `container.createScope()`.
 
 ## Testing
 
-Use `merge()` and `override()` to easily mock dependencies:
+Use `merge()` and override methods to easily mock dependencies:
 
 ```typescript
 // Create a module with your production services
@@ -300,13 +307,34 @@ const createAppModule = () =>
 // In tests, merge and override specific dependencies
 const testContainer = await new ContainerBuilder()
   .merge(createAppModule())
-  .override(CONFIG, testConfig)
-  .override(DATABASE, mockDatabase)
+  .overrideValue(CONFIG, testConfig)
+  .overrideValue(DATABASE, mockDatabase)
   .build();
 
 // UserService now uses mockDatabase
 const userService = testContainer.get(UserService);
 ```
+
+### Overriding Scoped Providers
+
+For scoped providers, use `overrideClass()` or `overrideFactory()`. These methods automatically preserve the original scope, so the provider remains accessible via `getScoped()`:
+
+```typescript
+// Override a scoped class with a mock factory
+const testContainer = await new ContainerBuilder()
+  .merge(createAppModule())
+  .overrideFactory({
+    provide: RequestScopedService,
+    deps: [] as const,
+    factory: () => mockRequestScopedService,
+  })
+  .build();
+
+const scope = testContainer.createScope();
+const service = await scope.getScoped(RequestScopedService); // Returns mock
+```
+
+Note: `overrideValue()` cannot be used with scoped providers because values are always singletons. Use `overrideFactory()` instead.
 
 ## Type Safety
 

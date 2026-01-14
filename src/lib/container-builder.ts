@@ -84,13 +84,65 @@ export class ContainerBuilder {
 
   /**
    * Override an existing provider with a value; intended for mocking during tests.
+   * Only works for singleton providers. For scoped providers, use overrideFactory instead.
    */
-  public override<T>(token: Token<T>, value: T): this {
-    if (!this.registrations.has(token)) {
-      throw new Error(`Cannot override: ${tokenToString(token)} is not registered`);
+  public overrideValue<T>(token: Token<T>, value: T): this {
+    const existing = this.assertTokenRegistered(token);
+    if (existing.scope === Scope.Scoped) {
+      throw new Error(
+        `Cannot use overrideValue on scoped provider ${tokenToString(token)}. Use overrideFactory instead.`
+      );
     }
     this.registrations.set(token, { type: 'value', scope: Scope.Singleton, token, value });
     return this;
+  }
+
+  /**
+   * Override an existing provider with a class; intended for mocking during tests.
+   * Preserves the original provider's scope.
+   */
+  public overrideClass<T, Deps extends readonly Token<any>[] = readonly []>(
+    token: Token<T>,
+    Class: InjectableClass<T, Deps>
+  ): this {
+    const existing = this.assertTokenRegistered(token);
+    this.registrations.set(token, {
+      type: 'class',
+      scope: existing.scope,
+      token,
+      Class,
+      deps: Class.deps ?? [],
+    });
+    return this;
+  }
+
+  /**
+   * Override an existing provider with a factory; intended for mocking during tests.
+   * Preserves the original provider's scope.
+   */
+  public overrideFactory<
+    T,
+    Deps extends readonly Token<any>[],
+    DestroyDeps extends readonly Token<any>[],
+  >(provider: FactoryProvider<T, Deps, DestroyDeps>): this {
+    const token = provider.provide;
+    const existing = this.assertTokenRegistered(token);
+    this.registrations.set(token, {
+      type: 'factory',
+      scope: existing.scope,
+      token,
+      provider,
+      deps: provider.deps,
+    });
+    return this;
+  }
+
+  private assertTokenRegistered(token: Token<unknown>): Registration {
+    const existing = this.registrations.get(token);
+    if (!existing) {
+      throw new Error(`Cannot override: ${tokenToString(token)} is not registered`);
+    }
+    return existing;
   }
 
   /**
