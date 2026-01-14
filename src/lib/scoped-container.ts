@@ -12,7 +12,13 @@ import { tokenToString } from './utils/token-to-string.js';
  */
 export class ScopedContainer {
   private readonly instances: Map<Token<unknown>, unknown> = new Map();
+
+  // Scoped instances are created async, so we need to track pending promises to ensure that
+  // multiple `.getScoped` calls resolve to the same value instead of creating multiple instances.
+  private readonly pendingPromises: Map<Token<unknown>, Promise<unknown>> = new Map();
+
   private readonly creationOrder: Token<unknown>[] = [];
+
   private _isDestroyed = false;
 
   public constructor(
@@ -61,22 +67,12 @@ export class ScopedContainer {
       throw new Error('Scope has been destroyed');
     }
 
-    // Check if already cached in this scope
-    if (this.instances.has(token)) {
-      return this.instances.get(token) as T;
+    const instance = await this.resolveScoped(token);
+    if (instance !== undefined) {
+      return instance;
     }
 
-    // Check if it's a scoped class
-    if (this.scopedClassProviders.has(token)) {
-      return this.createScopedClassInstance(token);
-    }
-
-    // Check if it's a scoped factory
-    if (this.scopedFactoryProviders.has(token)) {
-      return this.createScopedFactoryInstance(token);
-    }
-
-    // Not a scoped provider - throw an error
+    // Not a scoped provider - throw appropriate error
     if (this.parentInstances.has(token)) {
       throw new Error(
         `Token ${tokenToString(token)} is a singleton. Use get() instead of getScoped().`
@@ -161,23 +157,13 @@ export class ScopedContainer {
   }
 
   /**
-   * Internal resolution logic shared by get() and dependency resolution.
+   * Internal resolution logic for dependency resolution.
    * Does not check if scope is destroyed - caller must handle that.
    */
   private async resolve<T>(token: Token<T>): Promise<T> {
-    // Check if already cached in this scope
-    if (this.instances.has(token)) {
-      return this.instances.get(token) as T;
-    }
-
-    // Check if it's a scoped class
-    if (this.scopedClassProviders.has(token)) {
-      return this.createScopedClassInstance(token);
-    }
-
-    // Check if it's a scoped factory
-    if (this.scopedFactoryProviders.has(token)) {
-      return this.createScopedFactoryInstance(token);
+    const instance = await this.resolveScoped(token);
+    if (instance !== undefined) {
+      return instance;
     }
 
     // Fall back to parent container
@@ -186,5 +172,45 @@ export class ScopedContainer {
     }
 
     throw new Error(`Token not registered: ${tokenToString(token)}`);
+  }
+
+  /**
+   * Resolves a scoped instance, returning undefined if the token is not a scoped provider.
+   * Handles caching of both instances and in-flight promises to prevent race conditions.
+   */
+  private async resolveScoped<T>(token: Token<T>): Promise<T | undefined> {
+    // Check if already cached in this scope
+    if (this.instances.has(token)) {
+      return this.instances.get(token) as T;
+    }
+
+    // Check if creation is already in progress (prevents race condition)
+    if (this.pendingPromises.has(token)) {
+      return this.pendingPromises.get(token) as Promise<T>;
+    }
+
+    // Check if it's a scoped class
+    if (this.scopedClassProviders.has(token)) {
+      const promise = this.createScopedClassInstance(token);
+      this.pendingPromises.set(token, promise);
+      try {
+        return await promise;
+      } finally {
+        this.pendingPromises.delete(token);
+      }
+    }
+
+    // Check if it's a scoped factory
+    if (this.scopedFactoryProviders.has(token)) {
+      const promise = this.createScopedFactoryInstance(token);
+      this.pendingPromises.set(token, promise);
+      try {
+        return await promise;
+      } finally {
+        this.pendingPromises.delete(token);
+      }
+    }
+
+    return undefined;
   }
 }

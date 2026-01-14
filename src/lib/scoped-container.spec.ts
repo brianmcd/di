@@ -417,6 +417,27 @@ describe('Scoped edge cases', () => {
     expect(container.get(CONFIG)).toEqual({ value: 'test' });
   });
 
+  it('should return the same instance for concurrent getScoped() calls', async () => {
+    class ScopedService {
+      public static readonly deps = [] as const;
+      public readonly id = Math.random();
+    }
+
+    const container = await new ContainerBuilder()
+      .registerClass(ScopedService, { scope: Scope.Scoped })
+      .build();
+
+    const scope = container.createScope();
+
+    // Concurrent calls should return the same instance
+    const [instance1, instance2] = await Promise.all([
+      scope.getScoped(ScopedService),
+      scope.getScoped(ScopedService),
+    ]);
+
+    expect(instance1).toBe(instance2);
+  });
+
   it('should collect errors during scope destruction', async () => {
     class FailingService implements OnDestroy {
       public static readonly deps = [] as const;
