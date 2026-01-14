@@ -10,7 +10,7 @@ import { tokenToString } from './utils/token-to-string.js';
  * Data for a scoped class registration.
  */
 export interface ScopedClassData<T = unknown> {
-  Class: InjectableClass<T>;
+  Class: InjectableClass<T, readonly Token<any>[]>;
   deps: readonly Token<unknown>[];
 }
 

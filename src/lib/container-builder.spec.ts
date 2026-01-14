@@ -7,9 +7,7 @@ import { defineFactory } from './utils/define-factory.js';
 const CONFIG = createToken<{ value: string }>('CONFIG');
 const DATABASE = createToken<{ connection: string }>('DATABASE');
 
-class ServiceA {
-  public static readonly deps = [] as const;
-}
+class ServiceA {}
 
 class ServiceB {
   public static readonly deps = [ServiceA] as const;
@@ -38,6 +36,14 @@ describe('registerValue', () => {
 });
 
 describe('registerClass', () => {
+  it('should register a class without deps property', async () => {
+    class NoDepsService {}
+
+    const container = await new ContainerBuilder().registerClass(NoDepsService).build();
+
+    expect(container.get(NoDepsService)).toBeInstanceOf(NoDepsService);
+  });
+
   it('should register a class with no dependencies', async () => {
     const container = await new ContainerBuilder().registerClass(ServiceA).build();
 
