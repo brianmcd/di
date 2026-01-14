@@ -251,6 +251,7 @@ Fluent builder for constructing Containers. Call `.build()` at the end to get yo
 - `registerClass<T>(Class, options?): this` - Register a class with static `deps` property
 - `registerFactory<T>(provider, options?): this` - Register a factory provider
 - `merge(otherBuilder): this` - Merge registrations from another builder
+- `has(token): boolean` - Check if a token has been registered
 - `build(options?: { init?: boolean }): Promise<Container>` - Build the container. By default, also calls `init()` on the container. Set `{ init: false }` to skip automatic initialization if you need manual control over when `onInit` hooks run (useful for testing or staged startup).
 
 For testing, you can explicitly override tokens that have already been registered:

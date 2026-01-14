@@ -83,6 +83,13 @@ export class ContainerBuilder {
   }
 
   /**
+   * Check if a token has been registered.
+   */
+  public has(token: Token<unknown>): boolean {
+    return this.registrations.has(token);
+  }
+
+  /**
    * Override an existing provider with a value; intended for mocking during tests.
    * Only works for singleton providers. For scoped providers, use overrideFactory instead.
    */

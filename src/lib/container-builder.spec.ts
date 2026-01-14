@@ -19,6 +19,37 @@ class ServiceC {
   public constructor(public readonly serviceB: ServiceB) {}
 }
 
+describe('has', () => {
+  it('should return true for registered tokens', () => {
+    const builder = new ContainerBuilder().registerValue(CONFIG, { value: 'test' });
+
+    expect(builder.has(CONFIG)).toBe(true);
+  });
+
+  it('should return false for unregistered tokens', () => {
+    const builder = new ContainerBuilder();
+
+    expect(builder.has(CONFIG)).toBe(false);
+  });
+
+  it('should return true for class registrations', () => {
+    const builder = new ContainerBuilder().registerClass(ServiceA);
+
+    expect(builder.has(ServiceA)).toBe(true);
+  });
+
+  it('should return true for factory registrations', () => {
+    const factory = defineFactory({
+      provide: DATABASE,
+      deps: [] as const,
+      factory: () => ({ connection: 'test' }),
+    });
+    const builder = new ContainerBuilder().registerFactory(factory);
+
+    expect(builder.has(DATABASE)).toBe(true);
+  });
+});
+
 describe('registerValue', () => {
   it('should register and retrieve a value', async () => {
     const container = await new ContainerBuilder().registerValue(CONFIG, { value: 'test' }).build();
