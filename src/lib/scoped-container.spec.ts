@@ -376,7 +376,7 @@ describe('Scoped edge cases', () => {
     await expect(builder.build()).rejects.toThrow('Circular dependency');
   });
 
-  it('should allow override() to work with scoped registrations', async () => {
+  it('should allow overrideFactory() to work with scoped registrations', async () => {
     class ScopedService {
       public static readonly deps = [] as const;
       public value = 'original';
@@ -386,11 +386,16 @@ describe('Scoped edge cases', () => {
 
     const container = await new ContainerBuilder()
       .registerClass(ScopedService, { scope: Scope.Scoped })
-      .override(ScopedService, mockScoped as unknown as ScopedService)
+      .overrideFactory({
+        provide: ScopedService,
+        deps: [] as const,
+        factory: () => mockScoped,
+      })
       .build();
 
-    // After override, it becomes a value (singleton)
-    expect(container.get(ScopedService)).toBe(mockScoped);
+    // Scope is preserved, so use getScoped
+    const scope = container.createScope();
+    expect(await scope.getScoped(ScopedService)).toBe(mockScoped);
   });
 
   it('should handle merge() with scoped registrations', async () => {
