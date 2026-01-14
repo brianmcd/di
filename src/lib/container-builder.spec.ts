@@ -288,7 +288,7 @@ describe('registerClass with Scope.Scoped', () => {
     expect(instanceCount).toBe(0);
   });
 
-  it('should create instance when scope.get() is called', async () => {
+  it('should create instance when scope.getScoped() is called', async () => {
     class ScopedService {
       public static readonly deps = [] as const;
     }
@@ -298,7 +298,7 @@ describe('registerClass with Scope.Scoped', () => {
       .build();
 
     const scope = container.createScope();
-    const instance = await scope.get(ScopedService);
+    const instance = await scope.getScoped(ScopedService);
 
     expect(instance).toBeInstanceOf(ScopedService);
   });
@@ -313,8 +313,8 @@ describe('registerClass with Scope.Scoped', () => {
       .build();
 
     const scope = container.createScope();
-    const instance1 = await scope.get(ScopedService);
-    const instance2 = await scope.get(ScopedService);
+    const instance1 = await scope.getScoped(ScopedService);
+    const instance2 = await scope.getScoped(ScopedService);
 
     expect(instance1).toBe(instance2);
   });
@@ -331,7 +331,7 @@ describe('registerClass with Scope.Scoped', () => {
     const scope1 = container.createScope();
     const scope2 = container.createScope();
 
-    expect(await scope1.get(ScopedService)).not.toBe(await scope2.get(ScopedService));
+    expect(await scope1.getScoped(ScopedService)).not.toBe(await scope2.getScoped(ScopedService));
   });
 
   it('should throw on duplicate registration', () => {
@@ -378,9 +378,9 @@ describe('registerFactory with Scope.Scoped', () => {
     const scope1 = container.createScope();
     const scope2 = container.createScope();
 
-    expect(await scope1.get(REQUEST_ID)).toBe('request-1');
-    expect(await scope2.get(REQUEST_ID)).toBe('request-2');
-    expect(await scope1.get(REQUEST_ID)).toBe('request-1'); // Cached
+    expect(await scope1.getScoped(REQUEST_ID)).toBe('request-1');
+    expect(await scope2.getScoped(REQUEST_ID)).toBe('request-2');
+    expect(await scope1.getScoped(REQUEST_ID)).toBe('request-1'); // Cached
   });
 
   it('should handle async scoped factory', async () => {
@@ -400,7 +400,7 @@ describe('registerFactory with Scope.Scoped', () => {
       .build();
 
     const scope = container.createScope();
-    const result = await scope.get(REQUEST_DATA);
+    const result = await scope.getScoped(REQUEST_DATA);
 
     expect(result).toEqual({ id: 'async-result' });
   });
@@ -421,6 +421,6 @@ describe('registerFactory with Scope.Scoped', () => {
 
     const scope = container.createScope();
 
-    expect(await scope.get(REQUEST_ID)).toBe('request-test');
+    expect(await scope.getScoped(REQUEST_ID)).toBe('request-test');
   });
 });

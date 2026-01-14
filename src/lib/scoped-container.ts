@@ -26,15 +26,64 @@ export class ScopedContainer {
   }
 
   /**
-   * Get an instance by its token.
-   * - For scoped tokens: creates/caches instance within this scope
-   * - For singleton tokens: returns instance from parent container
+   * Get a singleton instance from the parent container.
+   * Throws if the token is a scoped provider - use getScoped() for those.
    */
-  public async get<T>(token: Token<T>): Promise<T> {
+  public get<T>(token: Token<T>): T {
     if (this._isDestroyed) {
       throw new Error('Scope has been destroyed');
     }
-    return this.resolve(token);
+
+    // Check if this is a scoped provider - if so, throw an error
+    if (this.scopedClassProviders.has(token) || this.scopedFactoryProviders.has(token)) {
+      throw new Error(
+        `Token ${tokenToString(token)} is a scoped provider. Use getScoped() instead of get().`
+      );
+    }
+
+    // Only return singletons from parent container
+    const instance = this.parentInstances.get(token);
+
+    if (instance === undefined) {
+      throw new Error(`Token not registered: ${tokenToString(token)}`);
+    }
+
+    return instance as T;
+  }
+
+  /**
+   * Get a scoped instance by its token.
+   * Creates and caches the instance within this scope on first access.
+   * Throws if the token is not a scoped provider.
+   */
+  public async getScoped<T>(token: Token<T>): Promise<T> {
+    if (this._isDestroyed) {
+      throw new Error('Scope has been destroyed');
+    }
+
+    // Check if already cached in this scope
+    if (this.instances.has(token)) {
+      return this.instances.get(token) as T;
+    }
+
+    // Check if it's a scoped class
+    if (this.scopedClassProviders.has(token)) {
+      return this.createScopedClassInstance(token);
+    }
+
+    // Check if it's a scoped factory
+    if (this.scopedFactoryProviders.has(token)) {
+      return this.createScopedFactoryInstance(token);
+    }
+
+    // Not a scoped provider - throw an error
+    if (this.parentInstances.has(token)) {
+      throw new Error(
+        `Token ${tokenToString(token)} is a singleton. Use get() instead of getScoped().`
+      );
+    }
+
+    throw new Error(`Token not registered: ${tokenToString(token)}`);
   }
 
   /**
