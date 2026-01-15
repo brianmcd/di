@@ -6,6 +6,28 @@ A lightweight, type-safe dependency injection container for Node.
 [![CI](https://github.com/brianmcd/di/actions/workflows/ci.yml/badge.svg)](https://github.com/brianmcd/di/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+## Table of Contents
+
+- [Motivation](#motivation)
+- [Installation](#installation)
+- [Example](#example)
+- [Overview](#overview)
+  - [Class Providers](#class-providers)
+  - [Factory Providers](#factory-providers)
+  - [Value Providers](#value-providers)
+- [Scoped Containers](#scoped-containers)
+- [Creating Reusable Packages](#creating-reusable-packages)
+- [API Reference](#api-reference)
+  - [ContainerBuilder](#containerbuilder)
+  - [Container](#container)
+  - [ScopedContainer](#scopedcontainer)
+  - [Helper Functions](#helper-functions)
+  - [Interfaces](#interfaces)
+- [Testing](#testing)
+- [Type Safety](#type-safety)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
+
 ## Motivation
 
 Why yet another DI container for Node?
