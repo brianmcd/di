@@ -61,9 +61,6 @@
     "test:coverage": "vitest run --coverage",
     "prepublishOnly": "pnpm run clean && pnpm run build"
   },
-  "dependencies": {
-    "tslib": "^2.6.0"
-  },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
     "@types/node": "^22.0.0",
