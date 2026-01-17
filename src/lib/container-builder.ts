@@ -246,7 +246,20 @@ export class ContainerBuilder {
         continue;
       }
 
+      const seenDeps = new Set<Token<unknown>>();
+
       for (const dep of registration.deps) {
+        // Check for duplicate dependencies
+        if (seenDeps.has(dep)) {
+          const dependent = tokenToString(token);
+          const dependency = tokenToString(dep);
+
+          throw new Error(
+            `Duplicate dependency: ${dependent} depends on ${dependency} multiple times`
+          );
+        }
+        seenDeps.add(dep);
+
         if (!this.registrations.has(dep)) {
           const dependent = tokenToString(token);
           const dependency = tokenToString(dep);

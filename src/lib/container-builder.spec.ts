@@ -127,6 +127,20 @@ describe('registerClass', () => {
       'Circular dependency detected: CircularA -> CircularB -> CircularA'
     );
   });
+
+  it('should throw on duplicate dependency', async () => {
+    class DuplicateDepClass {
+      public static readonly deps = [ServiceA, ServiceA] as const;
+
+      public constructor(_a1: ServiceA, _a2: ServiceA) {}
+    }
+
+    const builder = new ContainerBuilder().registerClass(ServiceA).registerClass(DuplicateDepClass);
+
+    await expect(builder.build()).rejects.toThrow(
+      'Duplicate dependency: DuplicateDepClass depends on ServiceA multiple times'
+    );
+  });
 });
 
 describe('registerFactory', () => {
