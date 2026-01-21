@@ -34,13 +34,14 @@ Why yet another DI container for Node?
 
 I couldn't find one with the following feature set:
 
-- **No decorators**: I don't want to rely on experimental decorators, emitDecoratorMetadata, or reflect-metadata.
-- **Async factories**: When using a factory provider, the factory needs to be able to be async.
-- **Lifecycle hooks**: When providing a class, I want to be able to have async `onInit` and `onDestroy` methods so that I can do initialization and cleanup.
-- **Scoped containers**: By default, providers create singletons, but sometimes you need things to be scoped in some way (e.g. request-scoped).
-- **Type safety**: If I have a mismatch between what I've declared and what I'm using, I want a compiler error.
+- **No decorators**: No need for experimentalDecorators, emitDecoratorMetadata, or reflect-metadata.
+- **Async factories**: Factories can be sync or async, so you can easily handle things like connecting to a database.
+- **Lifecycle hooks**: When created class-based providers, you can implement async `onInit` and `onDestroy` methods to easily handle init and cleanup.
+- **Scoped containers**: Easily implement request-scoping by created a scoped container, which creates and caches instances on-demand.
+- **Type safety**: Tokens convey type information instead of just being strings. Type matching between the `deps` array and class constructors is enforced.
+- **Zero dependencies**:  Who doesn't love that?
 
-These are the core design goals of `@brianmcd/di`. Beyond these, the goal is to keep the library small and simple.
+`@brianmcd/di` implements all of these features in a small, simple library.
 
 ## Installation
 
@@ -192,9 +193,9 @@ const container = await new ContainerBuilder().registerValue(CONFIG, { value: 't
 expect(container.get(CONFIG)).toEqual({ value: 'test' });
 ```
 
-## Scoped Containers
+## Scoped Containers (Implementing Request-scoping)
 
-The default behavior of the Container is to create singleton instances whose lifetime is the lifetime of the application. Sometimes, however, you have a set of providers that need to create new instances within some other scope, such as per-request. You can achieve that with Scoped Containers and defining the scope when you register your provider.
+The default behavior of the Container is to create singleton instances whose lifetime matches the lifetime of the Container. Sometimes, however, you have a set of providers that need to create new instances within some other scope, such as per-request. You can achieve that with Scoped Containers and seting the scope when you register your provider.
 
 ### Provider Scope
 
@@ -203,7 +204,7 @@ There are 2 scope options when registering a provider:
 1. Singleton (default): The provider is instantiated once when `.build()` is called on the `ContainerBuilder`.
 2. Scoped: The provider can only be created in a ScopedContainer. This is how you implement request-scoping.
 
-**Important:** Singleton providers cannot depend on Scoped providers. This constraint is validated at build time - you'll get an error if a singleton tries to inject a scoped dependency.
+**Important:** Singleton providers cannot depend on Scoped providers. This constraint is enforced when you call  `build` on the `Container` - you'll get an error if a singleton tries to inject a scoped dependency.
 
 ### Using a Scoped Container
 
