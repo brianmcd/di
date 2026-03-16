@@ -1,6 +1,6 @@
 {
   "name": "@brianmcd/di",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "Lightweight, decorator-free, type-safe dependency injection container for TypeScript",
   "author": "Brian McDaniel",
   "license": "MIT",
