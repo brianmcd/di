@@ -20,6 +20,38 @@ describe('Type safety', () => {
         .build();
     });
 
+    it('registerClass should catch when constructor has more params than deps', async () => {
+      const CONFIG = createToken<{ value: string }>('CONFIG');
+
+      class BadService {
+        public static readonly deps = [CONFIG] as const;
+        public constructor(_config: { value: string }, _extra: number) {}
+      }
+
+      await new ContainerBuilder()
+        .registerValue(CONFIG, { value: 'test' })
+        // @ts-expect-error - constructor has 2 params but deps only provides 1
+        .registerClass(BadService)
+        .build();
+    });
+
+    it('registerClass should catch when constructor has fewer params than deps', async () => {
+      const CONFIG = createToken<{ value: string }>('CONFIG');
+      const LOGGER = createToken<{ log: () => void }>('LOGGER');
+
+      class BadService {
+        public static readonly deps = [CONFIG, LOGGER] as const;
+        public constructor(_config: { value: string }) {}
+      }
+
+      await new ContainerBuilder()
+        .registerValue(CONFIG, { value: 'test' })
+        .registerValue(LOGGER, { log: () => {} })
+        // @ts-expect-error - constructor has 1 param but deps provides 2
+        .registerClass(BadService)
+        .build();
+    });
+
     it('registerClass should enforce deps matching constructor parameters for class-based dependencies', async () => {
       class ServiceA {
         public static readonly deps = [] as const;
