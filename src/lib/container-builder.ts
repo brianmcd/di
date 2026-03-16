@@ -6,6 +6,15 @@ import { Scope } from './types/scope.js';
 import type { Token } from './types/tokens.js';
 import { tokenToString } from './utils/token-to-string.js';
 
+type ValidateArity<
+  C extends new (...args: any[]) => any,
+  Deps extends readonly Token<any>[],
+> = Deps['length'] extends ConstructorParameters<C>['length']
+  ? ConstructorParameters<C>['length'] extends Deps['length']
+    ? unknown
+    : never
+  : never;
+
 /**
  * ContainerBuilder is the class you use to configure a Container.
  *
@@ -35,8 +44,12 @@ export class ContainerBuilder {
    * Dependencies are resolved automatically during build().
    * Type safety between the deps array and constructor params is enforced at this method.
    */
-  public registerClass<T, Deps extends readonly Token<any>[] = readonly []>(
-    Class: InjectableClass<T, Deps>,
+  public registerClass<
+    T,
+    Deps extends readonly Token<any>[] = readonly [],
+    C extends InjectableClass<T, Deps> = InjectableClass<T, Deps>,
+  >(
+    Class: C & InjectableClass<T, Deps> & ValidateArity<C, Deps>,
     options?: RegistrationOptions
   ): this {
     const token = Class as Token<T>;
@@ -108,10 +121,11 @@ export class ContainerBuilder {
    * Override an existing provider with a class; intended for mocking during tests.
    * Preserves the original provider's scope.
    */
-  public overrideClass<T, Deps extends readonly Token<any>[] = readonly []>(
-    token: Token<T>,
-    Class: InjectableClass<T, Deps>
-  ): this {
+  public overrideClass<
+    T,
+    Deps extends readonly Token<any>[] = readonly [],
+    C extends InjectableClass<T, Deps> = InjectableClass<T, Deps>,
+  >(token: Token<T>, Class: C & InjectableClass<T, Deps> & ValidateArity<C, Deps>): this {
     const existing = this.assertTokenRegistered(token);
     this.registrations.set(token, {
       type: 'class',
