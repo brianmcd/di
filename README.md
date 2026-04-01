@@ -16,10 +16,12 @@ A lightweight, type-safe dependency injection container for Node.
   - [Factory Providers](#factory-providers)
   - [Value Providers](#value-providers)
 - [Scoped Containers](#scoped-containers)
+  - [Scope-Provided Values](#scope-provided-values)
 - [Creating Reusable Packages](#creating-reusable-packages)
 - [API Reference](#api-reference)
   - [ContainerBuilder](#containerbuilder)
   - [Container](#container)
+  - [ScopeBuilder](#scopebuilder)
   - [ScopedContainer](#scopedcontainer)
   - [Helper Functions](#helper-functions)
   - [Interfaces](#interfaces)
@@ -225,6 +227,53 @@ Within a `ScopedContainer`, Scoped dependencies are created **once** and then ca
 
 When you're done with your `ScopedContainer`, be sure to call `.destroy()` on it to run any `onDestroy` hooks.
 
+### Scope-Provided Values
+
+Sometimes you need to inject a value that is only known at scope creation time, such as request data. You can do this by declaring a **scoped value** at build time and then providing its value when creating a scope.
+
+1. Use `registerScopedValue(token)` on the `ContainerBuilder` to declare the token. This tells the container that the value will be provided later, per-scope.
+2. Use `container.createScopeBuilder()` to get a `ScopeBuilder`, call `.provideValue()` for each declared scoped value, and then call `.build()` to create the `ScopedContainer`.
+
+Scoped providers can depend on scoped values just like any other dependency. Singletons **cannot** depend on scoped values (this is enforced at build time).
+
+```typescript
+import { ContainerBuilder, Scope, createToken } from '@brianmcd/di';
+
+interface RequestData {
+  url: string;
+  method: string;
+}
+
+const REQUEST_DATA = createToken<RequestData>('REQUEST_DATA');
+
+class RequestHandler {
+  static readonly deps = [REQUEST_DATA] as const;
+  constructor(private readonly request: RequestData) {}
+
+  handle() {
+    return `${this.request.method} ${this.request.url}`;
+  }
+}
+
+const container = await new ContainerBuilder()
+  .registerScopedValue(REQUEST_DATA)
+  .registerClass(RequestHandler, { scope: Scope.Scoped })
+  .build();
+
+// Per-request: create a scope with the request data
+const scope = container
+  .createScopeBuilder()
+  .provideValue(REQUEST_DATA, { url: '/api/users', method: 'GET' })
+  .build();
+
+const handler = await scope.getScoped(RequestHandler);
+handler.handle(); // 'GET /api/users'
+
+await scope.destroy();
+```
+
+Scope-provided values are accessible via `getScoped()`, just like other scoped providers. Like value providers, they are considered externally managed -- lifecycle hooks are never called on them.
+
 ## Creating Reusable Packages
 
 A common pattern is to break applications up into separate packages or libraries. `@brianmcd/di` supports this use case well via `ContainerBuilder`'s `merge` method.
@@ -273,6 +322,7 @@ Fluent builder for constructing Containers. Call `.build()` at the end to get yo
 - `registerValue<T>(token, value): this` - Register a plain value
 - `registerClass<T>(Class, options?): this` - Register a class with static `deps` property
 - `registerFactory<T>(provider, options?): this` - Register a factory provider
+- `registerScopedValue<T>(token): this` - Declare a scoped value token whose value will be provided at scope creation time via `ScopeBuilder`
 - `merge(otherBuilder): this` - Merge registrations from another builder
 - `has(token): boolean` - Check if a token has been registered
 - `build(options?: { init?: boolean }): Promise<Container>` - Build the container. By default, also calls `init()` on the container. Set `{ init: false }` to skip automatic initialization if you need manual control over when `onInit` hooks run (useful for testing or staged startup).
@@ -295,10 +345,20 @@ The core DI container that holds service instances.
 - `init(): Promise<void>` - Initialize all services (calls `onInit` on all services, ensuring dependencies are initialized before dependents).
 - `destroy(): Promise<void>` - Destroy all services (calls `onDestroy` in reverse order, ensuring dependencies are destroyed after dependents).
 - `createScope(): ScopedContainer` - Create a new scoped container for scoped dependencies.
+- `createScopeBuilder(): ScopeBuilder` - Create a `ScopeBuilder` for constructing a scoped container with provided values. Use this when you have scoped value tokens declared with `registerScopedValue()`.
+
+### ScopeBuilder
+
+Builder for constructing a `ScopedContainer` with scope-provided values. Created via `container.createScopeBuilder()`.
+
+#### Methods
+
+- `provideValue<T>(token, value): this` - Provide a value for a scoped value token declared with `registerScopedValue()`. Throws if the token was not declared.
+- `build(): ScopedContainer` - Build the scoped container. Throws if any declared scoped value tokens have not been provided.
 
 ### ScopedContainer
 
-Container for scoped instances, created via `container.createScope()`.
+Container for scoped instances, created via `container.createScope()` or `container.createScopeBuilder().build()`.
 
 #### Methods
 

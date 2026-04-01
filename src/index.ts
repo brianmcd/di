@@ -1,5 +1,6 @@
 export { Container } from './lib/container.js';
 export { ContainerBuilder } from './lib/container-builder.js';
+export { ScopeBuilder } from './lib/scope-builder.js';
 export { ScopedContainer } from './lib/scoped-container.js';
 
 export type { OnDestroy, OnInit } from './lib/types/lifecycle.js';

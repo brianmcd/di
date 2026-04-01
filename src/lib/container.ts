@@ -1,6 +1,7 @@
 import type { FactoryProvider } from './types/factory-provider.js';
 import type { InjectableClass } from './types/injectable-class.js';
 import type { Token } from './types/tokens.js';
+import { ScopeBuilder } from './scope-builder.js';
 import { ScopedContainer } from './scoped-container.js';
 import { hasOnDestroy } from './utils/has-on-destroy.js';
 import { hasOnInit } from './utils/has-on-init.js';
@@ -26,6 +27,7 @@ export interface ContainerState {
   // Scoped provider data (not instances - stored for Scope creation)
   scopedClassProviders: Map<Token<unknown>, ScopedClassData>;
   scopedFactoryProviders: Map<Token<unknown>, FactoryProvider<any, any, any>>;
+  scopedValueTokens: Set<Token<unknown>>;
 }
 
 export class Container {
@@ -35,6 +37,7 @@ export class Container {
   private readonly initOrder: Token<unknown>[];
   private readonly scopedClassProviders: Map<Token<unknown>, ScopedClassData>;
   private readonly scopedFactoryProviders: Map<Token<unknown>, FactoryProvider<any, any, any>>;
+  private readonly scopedValueTokens: Set<Token<unknown>>;
   private isInitialized = false;
 
   public constructor(state: ContainerState) {
@@ -44,6 +47,7 @@ export class Container {
     this.initOrder = state.initOrder;
     this.scopedClassProviders = state.scopedClassProviders;
     this.scopedFactoryProviders = state.scopedFactoryProviders;
+    this.scopedValueTokens = state.scopedValueTokens;
   }
 
   /**
@@ -69,6 +73,19 @@ export class Container {
       this.instances,
       this.scopedClassProviders,
       this.scopedFactoryProviders
+    );
+  }
+
+  /**
+   * Create a ScopeBuilder for constructing a scoped container with provided values.
+   * Use this when you have scoped value tokens that need to be supplied per-scope.
+   */
+  public createScopeBuilder(): ScopeBuilder {
+    return new ScopeBuilder(
+      this.instances,
+      this.scopedClassProviders,
+      this.scopedFactoryProviders,
+      this.scopedValueTokens
     );
   }
 
@@ -143,6 +160,7 @@ export class Container {
     this.initOrder.length = 0;
     this.scopedClassProviders.clear();
     this.scopedFactoryProviders.clear();
+    this.scopedValueTokens.clear();
     this.isInitialized = false;
 
     if (errors.length > 0) {

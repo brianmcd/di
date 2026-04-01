@@ -40,6 +40,16 @@ export class ContainerBuilder {
   }
 
   /**
+   * Declare a scoped value token whose value will be provided at scope creation time.
+   * Scoped providers can depend on this token; the actual value is supplied via
+   * `container.createScopeBuilder().provideValue(token, value).build()`.
+   */
+  public registerScopedValue<T>(token: Token<T>): this {
+    this.addRegistration(token, { type: 'scopedValue', scope: Scope.Scoped, token });
+    return this;
+  }
+
+  /**
    * Register a class with static deps property.
    * Dependencies are resolved automatically during build().
    * Type safety between the deps array and constructor params is enforced at this method.
@@ -182,6 +192,7 @@ export class ContainerBuilder {
       initOrder: [],
       scopedClassProviders: new Map(),
       scopedFactoryProviders: new Map(),
+      scopedValueTokens: new Set(),
     };
 
     for (const token of sorted) {
@@ -220,6 +231,10 @@ export class ContainerBuilder {
             state.factoryProviders.set(token, registration.provider);
             state.initOrder.push(token);
           }
+          break;
+        }
+        case 'scopedValue': {
+          state.scopedValueTokens.add(token);
           break;
         }
       }
@@ -430,7 +445,8 @@ export class ContainerBuilder {
 type Registration<T = unknown> =
   | ValueRegistration<T>
   | ClassRegistration<T>
-  | FactoryRegistration<T>;
+  | FactoryRegistration<T>
+  | ScopedValueRegistration<T>;
 
 interface ValueRegistration<T> {
   type: 'value';
@@ -453,4 +469,10 @@ interface FactoryRegistration<T> {
   token: Token<T>;
   provider: FactoryProvider<T, any, any>;
   deps: readonly Token<unknown>[];
+}
+
+interface ScopedValueRegistration<T> {
+  type: 'scopedValue';
+  scope: typeof Scope.Scoped;
+  token: Token<T>;
 }
