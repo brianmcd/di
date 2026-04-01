@@ -485,10 +485,7 @@ describe('Scope-provided values', () => {
 
     const container = await new ContainerBuilder().registerScopedValue(REQUEST_DATA).build();
 
-    const scope = container
-      .createScopeBuilder()
-      .provideValue(REQUEST_DATA, { id: '123' })
-      .build();
+    const scope = container.createScopeBuilder().provideValue(REQUEST_DATA, { id: '123' }).build();
 
     expect(await scope.getScoped(REQUEST_DATA)).toEqual({ id: '123' });
   });

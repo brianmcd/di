@@ -41,7 +41,7 @@ I couldn't find one with the following feature set:
 - **Lifecycle hooks**: When created class-based providers, you can implement async `onInit` and `onDestroy` methods to easily handle init and cleanup.
 - **Scoped containers**: Easily implement request-scoping by created a scoped container, which creates and caches instances on-demand.
 - **Type safety**: Tokens convey type information instead of just being strings. Type matching between the `deps` array and class constructors is enforced.
-- **Zero dependencies**:  Who doesn't love that?
+- **Zero dependencies**: Who doesn't love that?
 
 `@brianmcd/di` implements all of these features in a small, simple library.
 
@@ -206,7 +206,7 @@ There are 2 scope options when registering a provider:
 1. Singleton (default): The provider is instantiated once when `.build()` is called on the `ContainerBuilder`.
 2. Scoped: The provider can only be created in a ScopedContainer. This is how you implement request-scoping.
 
-**Important:** Singleton providers cannot depend on Scoped providers. This constraint is enforced when you call  `build` on the `Container` - you'll get an error if a singleton tries to inject a scoped dependency.
+**Important:** Singleton providers cannot depend on Scoped providers. This constraint is enforced when you call `build` on the `Container` - you'll get an error if a singleton tries to inject a scoped dependency.
 
 ### Using a Scoped Container
 
@@ -285,6 +285,7 @@ In your library, register your providers with a `ContainerBuilder`, but don't ca
 In your consuming application, simply call `.merge(yourLibraryContainerBuilder)`. This will merge all of the library's providers into the application's `ContainerBuilder`.
 
 Two important caveats:
+
 1. A `ContainerBuilder` forms a single namespace, so you can't provide the same token in your library and in your application.
 2. BUT, you can merge a single `ContainerBuilder` in multiple times without issue, which you might want to do if you have some reusable code used in multiple libraries that export `ContainerBuilder`s, and then those `ContainerBuilder`s are in turn merged into your application's `ContainerBuilder`.
 
