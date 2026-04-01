@@ -456,3 +456,123 @@ describe('Scoped edge cases', () => {
     await expect(scope.destroy()).rejects.toThrow(AggregateError);
   });
 });
+
+describe('Scope-provided values', () => {
+  it('should inject scope-provided value into a scoped class', async () => {
+    const REQUEST_DATA = createToken<{ url: string }>('REQUEST_DATA');
+
+    class RequestHandler {
+      public static readonly deps = [REQUEST_DATA] as const;
+      public constructor(public readonly request: { url: string }) {}
+    }
+
+    const container = await new ContainerBuilder()
+      .registerScopedValue(REQUEST_DATA)
+      .registerClass(RequestHandler, { scope: Scope.Scoped })
+      .build();
+
+    const scope = container
+      .createScopeBuilder()
+      .provideValue(REQUEST_DATA, { url: '/api/users' })
+      .build();
+
+    const handler = await scope.getScoped(RequestHandler);
+    expect(handler.request).toEqual({ url: '/api/users' });
+  });
+
+  it('should return scope-provided value via getScoped()', async () => {
+    const REQUEST_DATA = createToken<{ id: string }>('REQUEST_DATA');
+
+    const container = await new ContainerBuilder().registerScopedValue(REQUEST_DATA).build();
+
+    const scope = container.createScopeBuilder().provideValue(REQUEST_DATA, { id: '123' }).build();
+
+    expect(await scope.getScoped(REQUEST_DATA)).toEqual({ id: '123' });
+  });
+
+  it('should throw when get() is called with a scope-provided value token', async () => {
+    const REQUEST_DATA = createToken<string>('REQUEST_DATA');
+
+    const container = await new ContainerBuilder().registerScopedValue(REQUEST_DATA).build();
+
+    const scope = container.createScopeBuilder().provideValue(REQUEST_DATA, 'test').build();
+
+    expect(() => scope.get(REQUEST_DATA)).toThrow('Use getScoped() instead of get()');
+  });
+
+  it('should throw when ScopeBuilder.build() is called without providing all values', async () => {
+    const TOKEN_A = createToken<string>('TOKEN_A');
+    const TOKEN_B = createToken<string>('TOKEN_B');
+
+    const container = await new ContainerBuilder()
+      .registerScopedValue(TOKEN_A)
+      .registerScopedValue(TOKEN_B)
+      .build();
+
+    const builder = container.createScopeBuilder().provideValue(TOKEN_A, 'a');
+
+    expect(() => builder.build()).toThrow('Missing scope value');
+  });
+
+  it('should throw when provideValue() is called with an undeclared token', async () => {
+    const DECLARED = createToken<string>('DECLARED');
+    const UNDECLARED = createToken<string>('UNDECLARED');
+
+    const container = await new ContainerBuilder().registerScopedValue(DECLARED).build();
+
+    const builder = container.createScopeBuilder();
+
+    expect(() => builder.provideValue(UNDECLARED, 'test')).toThrow(
+      'not registered as a scoped value'
+    );
+  });
+
+  it('should prevent singleton from depending on a scoped value', async () => {
+    const REQUEST_DATA = createToken<string>('REQUEST_DATA');
+
+    class SingletonService {
+      public static readonly deps = [REQUEST_DATA] as const;
+      public constructor(_data: string) {}
+    }
+
+    const builder = new ContainerBuilder()
+      .registerScopedValue(REQUEST_DATA)
+      .registerClass(SingletonService);
+
+    await expect(builder.build()).rejects.toThrow(
+      'singleton SingletonService cannot depend on scoped REQUEST_DATA'
+    );
+  });
+
+  it('should give independent values to different scopes', async () => {
+    const REQUEST_ID = createToken<string>('REQUEST_ID');
+
+    const container = await new ContainerBuilder().registerScopedValue(REQUEST_ID).build();
+
+    const scope1 = container.createScopeBuilder().provideValue(REQUEST_ID, 'req-1').build();
+    const scope2 = container.createScopeBuilder().provideValue(REQUEST_ID, 'req-2').build();
+
+    expect(await scope1.getScoped(REQUEST_ID)).toBe('req-1');
+    expect(await scope2.getScoped(REQUEST_ID)).toBe('req-2');
+  });
+
+  it('should not call lifecycle hooks on scope-provided values during destroy', async () => {
+    const SERVICE = createToken<OnDestroy>('SERVICE');
+
+    let destroyCalled = false;
+    const value: OnDestroy = {
+      onDestroy: () => {
+        destroyCalled = true;
+      },
+    };
+
+    const container = await new ContainerBuilder().registerScopedValue(SERVICE).build();
+
+    const scope = container.createScopeBuilder().provideValue(SERVICE, value).build();
+
+    await scope.getScoped(SERVICE);
+    await scope.destroy();
+
+    expect(destroyCalled).toBe(false);
+  });
+});

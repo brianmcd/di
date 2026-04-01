@@ -24,8 +24,16 @@ export class ScopedContainer {
   public constructor(
     private readonly parentInstances: Map<Token<unknown>, unknown>,
     private readonly scopedClassProviders: Map<Token<unknown>, ScopedClassData>,
-    private readonly scopedFactoryProviders: Map<Token<unknown>, FactoryProvider<any, any, any>>
-  ) {}
+    private readonly scopedFactoryProviders: Map<Token<unknown>, FactoryProvider<any, any, any>>,
+    scopeValues?: Map<Token<unknown>, unknown>,
+    private readonly scopedValueTokens: Set<Token<unknown>> = new Set()
+  ) {
+    if (scopeValues) {
+      for (const [token, value] of scopeValues) {
+        this.instances.set(token, value);
+      }
+    }
+  }
 
   public get isDestroyed(): boolean {
     return this._isDestroyed;
@@ -41,7 +49,11 @@ export class ScopedContainer {
     }
 
     // Check if this is a scoped provider - if so, throw an error
-    if (this.scopedClassProviders.has(token) || this.scopedFactoryProviders.has(token)) {
+    if (
+      this.scopedClassProviders.has(token) ||
+      this.scopedFactoryProviders.has(token) ||
+      this.scopedValueTokens.has(token)
+    ) {
       throw new Error(
         `Token ${tokenToString(token)} is a scoped provider. Use getScoped() instead of get().`
       );
